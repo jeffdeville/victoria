@@ -1,0 +1,27 @@
+apiVersion: k3d.io/v1alpha5
+kind: Simple
+metadata:
+  name: observability
+servers: 1
+agents: 1
+ports:
+  # Traefik ingress — access UIs via http://localhost:8088
+  - port: 8088:80
+    nodeFilters:
+      - loadbalancer
+volumes:
+  # Persist storage across cluster restarts
+  - volume: observability-storage:/var/lib/rancher/k3s/storage
+    nodeFilters:
+      - all
+options:
+  k3d:
+    wait: true
+    timeout: "120s"
+  k3s:
+    extraArgs:
+      # Increase default PVC storage limit
+      - arg: --kubelet-arg=eviction-hard=imagefs.available<1%,nodefs.available<1%
+        nodeFilters:
+          - agent:*
+          - server:*

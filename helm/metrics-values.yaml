@@ -1,0 +1,100 @@
+# victoria-metrics-k8s-stack
+# Release name: vm  (short to keep generated service names under 63 chars)
+# Installs: VMSingle, VMAgent, VMAlert, Alertmanager, Grafana,
+#           kube-state-metrics, node-exporter
+# The operator is installed separately as release 'vm-operator' so that its
+# webhook is ready before these CRDs are applied.
+# Helm repo: vm  (https://victoriametrics.github.io/helm-charts/)
+# Chart:     vm/victoria-metrics-k8s-stack
+
+# ── Operator ──────────────────────────────────────────────────────────────────
+# Disabled here — installed separately as release 'vm-operator' first
+victoria-metrics-operator:
+  enabled: false
+
+# ── Metrics storage ───────────────────────────────────────────────────────────
+vmsingle:
+  enabled: true
+  spec:
+    retentionPeriod: "14d"
+    storage:
+      resources:
+        requests:
+          storage: 20Gi
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    hosts:
+      - vmui.local
+      - vmui.obsrv.clny.dev
+
+# ── Metrics scraping agent ────────────────────────────────────────────────────
+vmagent:
+  enabled: true
+  spec:
+    # OTEL collector is the ingest path for app telemetry.
+    # VMAgent handles cluster-internal scraping (pods, nodes, etc.)
+    externalLabels: {}
+
+# ── Alerting engine ───────────────────────────────────────────────────────────
+vmalert:
+  enabled: true
+  spec:
+    evaluationInterval: "1m"
+
+# ── Alertmanager ──────────────────────────────────────────────────────────────
+alertmanager:
+  enabled: true
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    hosts:
+      - alertmanager.local
+      - alertmanager.obsrv.clny.dev
+
+# ── Grafana ───────────────────────────────────────────────────────────────────
+grafana:
+  enabled: true
+  adminUser: admin
+  adminPassword: admin
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    hosts:
+      - grafana.local
+      - obsrv.clny.dev
+  # Additional datasources (VictoriaMetrics Prometheus source is auto-added by the chart)
+  additionalDataSources:
+    - name: VictoriaLogs
+      type: loki
+      url: http://logs-victoria-logs-single-server.monitoring.svc.cluster.local:9428
+      access: proxy
+      isDefault: false
+    - name: VictoriaTraces
+      type: tempo
+      url: http://traces-vt-single-server.monitoring.svc.cluster.local:10428
+      access: proxy
+      isDefault: false
+      jsonData:
+        tracesToLogsV2:
+          datasourceUid: VictoriaLogs
+          filterByTraceID: true
+          filterBySpanID: false
+        tracesToMetrics:
+          datasourceUid: VictoriaMetrics
+        serviceMap:
+          datasourceUid: VictoriaMetrics
+        lokiSearch:
+          datasourceUid: VictoriaLogs
+
+# ── Cluster metrics collectors ────────────────────────────────────────────────
+kube-state-metrics:
+  enabled: true
+
+prometheus-node-exporter:
+  enabled: true
+
+# ── Disable unused subcharts ──────────────────────────────────────────────────
+# We use VMSingle; cluster mode is not needed for local dev
+vmcluster:
+  enabled: false

@@ -1,0 +1,88 @@
+# opentelemetry-collector
+# Single central collector in the monitoring namespace.
+# All project namespaces send OTLP to:
+#   otel-collector.monitoring.svc.cluster.local:4317  (gRPC)
+#   otel-collector.monitoring.svc.cluster.local:4318  (HTTP)
+#
+# The k8sattributes processor reads Kubernetes metadata and adds:
+#   k8s.namespace.name, k8s.pod.name, k8s.node.name, etc.
+# The resource processor copies k8s.namespace.name → project,
+#   which becomes the consistent filter key across metrics, logs, and traces.
+#
+# Helm repo: open-telemetry  (https://open-telemetry.github.io/opentelemetry-helm-charts)
+# Chart:     open-telemetry/opentelemetry-collector
+
+image:
+  repository: otel/opentelemetry-collector-contrib
+
+mode: deployment
+
+replicaCount: 1
+
+# presets.kubernetesAttributes creates the RBAC needed for k8s_attributes
+# and inserts it into the processor pipeline automatically.
+presets:
+  kubernetesAttributes:
+    enabled: true
+    extractAllPodLabels: false
+    extractAllPodAnnotations: false
+
+# Note: the preset injects 'k8sattributes' (deprecated alias) into pipelines.
+# This logs a deprecation warning but is harmless; it will clear when the chart
+# updates the preset to use 'k8s_attributes'.
+
+config:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+
+  processors:
+    memory_limiter:
+      check_interval: 1s
+      limit_percentage: 75
+      spike_limit_percentage: 15
+    batch:
+      timeout: 5s
+      send_batch_size: 1000
+    # Copy k8s.namespace.name → project so all three backends share the same label name
+    resource:
+      attributes:
+        - key: project
+          from_attribute: k8s.namespace.name
+          action: insert
+
+  exporters:
+    otlp_http/metrics:
+      endpoint: http://vmsingle-vm-victoria-metrics-k8s-stack.monitoring.svc.cluster.local:8428/opentelemetry
+      tls:
+        insecure: true
+    otlp_http/logs:
+      endpoint: http://logs-victoria-logs-single-server.monitoring.svc.cluster.local:9428/insert/opentelemetry
+      tls:
+        insecure: true
+    otlp_http/traces:
+      endpoint: http://traces-vt-single-server.monitoring.svc.cluster.local:10428/insert/opentelemetry
+      tls:
+        insecure: true
+
+  service:
+    pipelines:
+      metrics:
+        receivers: [otlp]
+        processors: [memory_limiter, k8sattributes, resource, batch]
+        exporters: [otlp_http/metrics]
+      logs:
+        receivers: [otlp]
+        processors: [memory_limiter, k8sattributes, resource, batch]
+        exporters: [otlp_http/logs]
+      traces:
+        receivers: [otlp]
+        processors: [memory_limiter, k8sattributes, resource, batch]
+        exporters: [otlp_http/traces]
+
+# OTLP ports (4317 gRPC, 4318 HTTP) are exposed automatically by the chart
+# when the otlp receiver is configured. No additional service config needed.
