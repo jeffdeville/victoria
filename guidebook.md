@@ -20,6 +20,52 @@ The collector automatically adds a `project` label/attribute to all telemetry by
 
 ---
 
+## Sending telemetry from outside the cluster (local dev)
+
+When your app is running on your Mac — not inside a pod — the flow is the same but with two differences:
+
+1. **Endpoints are `localhost`**, reached via port-forward.
+2. **`project` is not auto-detected** — the collector's `k8sattributes` processor looks up the sender's pod IP, which doesn't exist for a local process. You must set `project` yourself as a resource attribute.
+
+### 1. Start the port-forwards
+
+```bash
+bash scripts/port-forward.sh
+```
+
+This now exposes the OTEL Collector at `localhost:4317` (gRPC) and `localhost:4318` (HTTP) in addition to the backend UIs.
+
+### 2. Set the endpoint and project attribute
+
+Use environment variables — all OTEL SDKs respect them:
+
+```bash
+export OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:4317"
+export OTEL_EXPORTER_OTLP_PROTOCOL="grpc"
+export OTEL_SERVICE_NAME="my-service"
+export OTEL_RESOURCE_ATTRIBUTES="project=my-project,deployment.environment=local"
+```
+
+`project` is the key used everywhere in Grafana to filter by app — set it to the same value you'd use as the namespace name if this were deployed in-cluster.
+
+### 3. No other code changes needed
+
+If your app already reads `OTEL_EXPORTER_OTLP_ENDPOINT` from the environment (which all standard SDK configurations do), setting these vars is sufficient. The SDK setup code shown in the per-language sections below works unchanged.
+
+### Direct-to-backend (skip the collector)
+
+If you want to bypass the collector entirely and write directly to the backends, the local port-forward addresses are:
+
+| Signal | Endpoint |
+|--------|----------|
+| Metrics | `http://localhost:8428/opentelemetry` |
+| Logs | `http://localhost:9428/insert/opentelemetry` |
+| Traces | `http://localhost:10428/insert/opentelemetry` |
+
+These require HTTP (not gRPC) and you lose the collector's batching and retry logic. Use the collector path unless you have a specific reason not to.
+
+---
+
 ## Step 1: Create a namespace for the project
 
 ```bash
@@ -418,14 +464,22 @@ VMAlert picks it up automatically — no restart needed. View firing alerts at h
 
 ## Checklist
 
+**In-cluster (pod):**
 - [ ] Namespace created: `kubectl create namespace my-project`
-- [ ] `OTEL_EXPORTER_OTLP_ENDPOINT` set to the collector gRPC address
+- [ ] `OTEL_EXPORTER_OTLP_ENDPOINT` set to the collector cluster DNS address
 - [ ] `OTEL_SERVICE_NAME` set to a consistent service name
 - [ ] Traces instrumented (auto-instrumentation or manual spans)
 - [ ] Metrics instrumented (process metrics auto-collected; add custom counters/histograms as needed)
 - [ ] Logs shipping (OTLP or Vector sidecar)
 - [ ] Verified data appears in Grafana: filter by `project="my-project"`
 - [ ] Alerts defined as `VMRule` in project namespace
+
+**Local dev (outside cluster):**
+- [ ] `scripts/port-forward.sh` running
+- [ ] `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317`
+- [ ] `OTEL_RESOURCE_ATTRIBUTES` includes `project=my-project`
+- [ ] `OTEL_SERVICE_NAME` set
+- [ ] Verified data appears in Grafana
 
 ---
 
@@ -434,6 +488,8 @@ VMAlert picks it up automatically — no restart needed. View firing alerts at h
 **No data appearing**: Check that your pod's service account has no network policies blocking egress to port 4317 in the `monitoring` namespace. In k3d the default allows all, so this is usually only an issue if you've added network policies.
 
 **`k8s.namespace.name` not being set**: The collector's `k8sattributes` processor looks up the sending pod's IP in the Kubernetes API. This requires the pod to be sending from its actual pod IP (not NATed). This works by default in k3d.
+
+**`project` label missing when developing locally**: When sending from outside the cluster (via port-forward), there is no pod IP to look up, so `k8sattributes` silently skips enrichment. You must set `project` manually via `OTEL_RESOURCE_ATTRIBUTES=project=my-project`. If data arrives in Grafana with no project label, this is the cause.
 
 **Metrics not visible in VMSingle**: VictoriaMetrics ignores OTLP metrics with no data points. Ensure your SDK is actually recording values before export, not just creating instruments.
 
