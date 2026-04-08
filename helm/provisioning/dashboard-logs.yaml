@@ -15,7 +15,7 @@ data:
       "timezone": "browser",
       "refresh": "30s",
       "schemaVersion": 39,
-      "time": { "from": "now-1h", "to": "now" },
+      "time": { "from": "now-3h", "to": "now" },
       "graphTooltip": 1,
       "templating": {
         "list": [
