@@ -1,0 +1,130 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-logs
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  logs.json: |
+    {
+      "title": "All Projects — Logs",
+      "uid": "colony-logs",
+      "description": "Log explorer with project and level filters. Use the stream to drill into errors.",
+      "tags": ["colony", "logs"],
+      "timezone": "browser",
+      "refresh": "30s",
+      "schemaVersion": 39,
+      "time": { "from": "now-1h", "to": "now" },
+      "graphTooltip": 1,
+      "templating": {
+        "list": [
+          {
+            "name": "project",
+            "label": "Project",
+            "type": "query",
+            "datasource": { "type": "loki", "uid": "victorialogs" },
+            "definition": "label_values(project)",
+            "query": "label_values(project)",
+            "refresh": 2,
+            "multi": true,
+            "includeAll": true,
+            "allValue": ".+",
+            "current": { "selected": true, "text": "All", "value": "$__all" },
+            "sort": 1
+          },
+          {
+            "name": "level",
+            "label": "Level",
+            "type": "custom",
+            "query": "error,warning,info,debug",
+            "multi": true,
+            "includeAll": true,
+            "allValue": ".+",
+            "current": { "selected": true, "text": "All", "value": "$__all" }
+          }
+        ]
+      },
+      "panels": [
+        {
+          "type": "timeseries",
+          "title": "Log Volume by Level",
+          "gridPos": { "h": 6, "w": 24, "x": 0, "y": 0 },
+          "datasource": { "type": "loki", "uid": "victorialogs" },
+          "targets": [
+            {
+              "datasource": { "type": "loki", "uid": "victorialogs" },
+              "expr": "sum(count_over_time({project=~\"$project\", level=\"error\"} [$__interval]))",
+              "legendFormat": "error",
+              "refId": "A"
+            },
+            {
+              "datasource": { "type": "loki", "uid": "victorialogs" },
+              "expr": "sum(count_over_time({project=~\"$project\", level=\"warning\"} [$__interval]))",
+              "legendFormat": "warning",
+              "refId": "B"
+            },
+            {
+              "datasource": { "type": "loki", "uid": "victorialogs" },
+              "expr": "sum(count_over_time({project=~\"$project\", level=\"info\"} [$__interval]))",
+              "legendFormat": "info",
+              "refId": "C"
+            }
+          ],
+          "options": {
+            "tooltip": { "mode": "multi", "sort": "desc" },
+            "legend": { "displayMode": "list", "placement": "right" }
+          },
+          "fieldConfig": {
+            "defaults": {
+              "custom": { "lineWidth": 0, "fillOpacity": 80, "stacking": { "mode": "normal", "group": "A" } }
+            },
+            "overrides": [
+              { "matcher": { "id": "byName", "options": "error" }, "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }] },
+              { "matcher": { "id": "byName", "options": "warning" }, "properties": [{ "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }] },
+              { "matcher": { "id": "byName", "options": "info" }, "properties": [{ "id": "color", "value": { "fixedColor": "blue", "mode": "fixed" } }] }
+            ]
+          }
+        },
+        {
+          "type": "logs",
+          "title": "Log Stream",
+          "gridPos": { "h": 20, "w": 24, "x": 0, "y": 6 },
+          "datasource": { "type": "loki", "uid": "victorialogs" },
+          "targets": [{
+            "datasource": { "type": "loki", "uid": "victorialogs" },
+            "expr": "{project=~\"$project\", level=~\"$level\"}",
+            "refId": "A"
+          }],
+          "options": {
+            "showTime": true,
+            "showLabels": false,
+            "showCommonLabels": false,
+            "wrapLogMessage": true,
+            "prettifyLogMessage": false,
+            "enableLogDetails": true,
+            "sortOrder": "Descending",
+            "dedupStrategy": "none"
+          }
+        },
+        {
+          "type": "table",
+          "title": "Error Summary — Top Modules",
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 26 },
+          "datasource": { "type": "loki", "uid": "victorialogs" },
+          "targets": [{
+            "datasource": { "type": "loki", "uid": "victorialogs" },
+            "expr": "sum by (module, project) (count_over_time({project=~\"$project\", level=\"error\"} [$__range]))",
+            "refId": "A",
+            "instant": true
+          }],
+          "options": { "sortBy": [{ "displayName": "Value", "desc": true }] },
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": [
+              { "matcher": { "id": "byName", "options": "Time" }, "properties": [{ "id": "custom.hidden", "value": true }] }
+            ]
+          }
+        }
+      ]
+    }

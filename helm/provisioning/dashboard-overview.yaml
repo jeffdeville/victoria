@@ -1,0 +1,216 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-overview
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  overview.json: |
+    {
+      "title": "All Projects — Overview",
+      "uid": "colony-overview",
+      "description": "Cross-project snapshot: logs, errors, latency, and BEAM health. Filter to one or more projects with the variable below.",
+      "tags": ["colony", "overview"],
+      "timezone": "browser",
+      "refresh": "30s",
+      "schemaVersion": 39,
+      "time": { "from": "now-1h", "to": "now" },
+      "graphTooltip": 1,
+      "templating": {
+        "list": [
+          {
+            "name": "project",
+            "label": "Project",
+            "type": "query",
+            "datasource": { "type": "prometheus", "uid": "P4169E866C3094E38" },
+            "definition": "label_values(project)",
+            "query": { "query": "label_values(project)", "refId": "A" },
+            "refresh": 2,
+            "multi": true,
+            "includeAll": true,
+            "allValue": ".+",
+            "current": { "selected": true, "text": "All", "value": "$__all" },
+            "sort": 1
+          }
+        ]
+      },
+      "panels": [
+        {
+          "type": "stat",
+          "title": "Log Entries (1h)",
+          "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+          "datasource": { "type": "loki", "uid": "victorialogs" },
+          "targets": [{
+            "datasource": { "type": "loki", "uid": "victorialogs" },
+            "expr": "sum(count_over_time({project=~\"$project\"} [1h]))",
+            "refId": "A"
+          }],
+          "options": { "colorMode": "background", "graphMode": "none", "textMode": "auto" },
+          "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] } } }
+        },
+        {
+          "type": "stat",
+          "title": "Errors (1h)",
+          "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+          "datasource": { "type": "loki", "uid": "victorialogs" },
+          "targets": [{
+            "datasource": { "type": "loki", "uid": "victorialogs" },
+            "expr": "sum(count_over_time({project=~\"$project\", level=\"error\"} [1h]))",
+            "refId": "A"
+          }],
+          "options": { "colorMode": "background", "graphMode": "none", "textMode": "auto" },
+          "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 1 }, { "color": "red", "value": 50 }] } } }
+        },
+        {
+          "type": "stat",
+          "title": "Warnings (1h)",
+          "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+          "datasource": { "type": "loki", "uid": "victorialogs" },
+          "targets": [{
+            "datasource": { "type": "loki", "uid": "victorialogs" },
+            "expr": "sum(count_over_time({project=~\"$project\", level=\"warning\"} [1h]))",
+            "refId": "A"
+          }],
+          "options": { "colorMode": "background", "graphMode": "none", "textMode": "auto" },
+          "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 10 }, { "color": "orange", "value": 100 }] } } }
+        },
+        {
+          "type": "stat",
+          "title": "HTTP Request Rate",
+          "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "P4169E866C3094E38" },
+          "targets": [{
+            "datasource": { "type": "prometheus", "uid": "P4169E866C3094E38" },
+            "expr": "sum(rate(http_server_request_duration_milliseconds_count{project=~\"$project\"}[$__rate_interval]))",
+            "refId": "A"
+          }],
+          "options": { "colorMode": "background", "graphMode": "area", "textMode": "auto" },
+          "fieldConfig": { "defaults": { "unit": "reqps", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] } } }
+        },
+        {
+          "type": "timeseries",
+          "title": "Log Volume by Level",
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 4 },
+          "datasource": { "type": "loki", "uid": "victorialogs" },
+          "targets": [
+            {
+              "datasource": { "type": "loki", "uid": "victorialogs" },
+              "expr": "sum by (level) (count_over_time({project=~\"$project\", level=\"error\"} [$__interval]))",
+              "legendFormat": "error",
+              "refId": "A"
+            },
+            {
+              "datasource": { "type": "loki", "uid": "victorialogs" },
+              "expr": "sum by (level) (count_over_time({project=~\"$project\", level=\"warning\"} [$__interval]))",
+              "legendFormat": "warning",
+              "refId": "B"
+            },
+            {
+              "datasource": { "type": "loki", "uid": "victorialogs" },
+              "expr": "sum by (level) (count_over_time({project=~\"$project\", level=\"info\"} [$__interval]))",
+              "legendFormat": "info",
+              "refId": "C"
+            }
+          ],
+          "options": {
+            "tooltip": { "mode": "multi", "sort": "desc" },
+            "legend": { "displayMode": "list", "placement": "bottom" }
+          },
+          "fieldConfig": {
+            "defaults": {
+              "custom": { "lineWidth": 0, "fillOpacity": 80, "stacking": { "mode": "normal", "group": "A" } }
+            },
+            "overrides": [
+              { "matcher": { "id": "byName", "options": "error" }, "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }] },
+              { "matcher": { "id": "byName", "options": "warning" }, "properties": [{ "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }] },
+              { "matcher": { "id": "byName", "options": "info" }, "properties": [{ "id": "color", "value": { "fixedColor": "blue", "mode": "fixed" } }] }
+            ]
+          }
+        },
+        {
+          "type": "timeseries",
+          "title": "HTTP Request Rate by Project",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+          "datasource": { "type": "prometheus", "uid": "P4169E866C3094E38" },
+          "targets": [{
+            "datasource": { "type": "prometheus", "uid": "P4169E866C3094E38" },
+            "expr": "sum by (project) (rate(http_server_request_duration_milliseconds_count{project=~\"$project\"}[$__rate_interval]))",
+            "legendFormat": "{{project}}",
+            "refId": "A"
+          }],
+          "options": { "tooltip": { "mode": "multi" }, "legend": { "displayMode": "list", "placement": "bottom" } },
+          "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "lineWidth": 1, "fillOpacity": 10 } } }
+        },
+        {
+          "type": "timeseries",
+          "title": "HTTP Error Rate by Project",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+          "datasource": { "type": "prometheus", "uid": "P4169E866C3094E38" },
+          "targets": [{
+            "datasource": { "type": "prometheus", "uid": "P4169E866C3094E38" },
+            "expr": "sum by (project) (rate(http_server_request_duration_milliseconds_count{project=~\"$project\", http_response_status_code=~\"5..\"}[$__rate_interval]))",
+            "legendFormat": "{{project}}",
+            "refId": "A"
+          }],
+          "options": { "tooltip": { "mode": "multi" }, "legend": { "displayMode": "list", "placement": "bottom" } },
+          "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "lineWidth": 1, "fillOpacity": 10 }, "color": { "mode": "palette-classic" } } }
+        },
+        {
+          "type": "timeseries",
+          "title": "p99 HTTP Latency by Project",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+          "datasource": { "type": "prometheus", "uid": "P4169E866C3094E38" },
+          "targets": [{
+            "datasource": { "type": "prometheus", "uid": "P4169E866C3094E38" },
+            "expr": "histogram_quantile(0.99, sum by (project, le) (rate(http_server_request_duration_milliseconds_bucket{project=~\"$project\"}[$__rate_interval])))",
+            "legendFormat": "{{project}} p99",
+            "refId": "A"
+          }],
+          "options": { "tooltip": { "mode": "multi" }, "legend": { "displayMode": "list", "placement": "bottom" } },
+          "fieldConfig": { "defaults": { "unit": "ms", "custom": { "lineWidth": 1, "fillOpacity": 10 } } }
+        },
+        {
+          "type": "timeseries",
+          "title": "BEAM Process Count by Project",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+          "datasource": { "type": "prometheus", "uid": "P4169E866C3094E38" },
+          "targets": [{
+            "datasource": { "type": "prometheus", "uid": "P4169E866C3094E38" },
+            "expr": "vm_process_count{project=~\"$project\"}",
+            "legendFormat": "{{project}}",
+            "refId": "A"
+          }],
+          "options": { "tooltip": { "mode": "multi" }, "legend": { "displayMode": "list", "placement": "bottom" } },
+          "fieldConfig": { "defaults": { "custom": { "lineWidth": 1, "fillOpacity": 10 } } }
+        },
+        {
+          "type": "timeseries",
+          "title": "BEAM Memory by Project",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 28 },
+          "datasource": { "type": "prometheus", "uid": "P4169E866C3094E38" },
+          "targets": [{
+            "datasource": { "type": "prometheus", "uid": "P4169E866C3094E38" },
+            "expr": "sum by (project) (vm_memory_total{project=~\"$project\"})",
+            "legendFormat": "{{project}}",
+            "refId": "A"
+          }],
+          "options": { "tooltip": { "mode": "multi" }, "legend": { "displayMode": "list", "placement": "bottom" } },
+          "fieldConfig": { "defaults": { "unit": "bytes", "custom": { "lineWidth": 1, "fillOpacity": 10 } } }
+        },
+        {
+          "type": "timeseries",
+          "title": "BEAM GC Words Reclaimed by Project",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 28 },
+          "datasource": { "type": "prometheus", "uid": "P4169E866C3094E38" },
+          "targets": [{
+            "datasource": { "type": "prometheus", "uid": "P4169E866C3094E38" },
+            "expr": "sum by (project) (rate(vm_memory_atom_count{project=~\"$project\"}[$__rate_interval]))",
+            "legendFormat": "{{project}} atoms",
+            "refId": "A"
+          }],
+          "options": { "tooltip": { "mode": "multi" }, "legend": { "displayMode": "list", "placement": "bottom" } },
+          "fieldConfig": { "defaults": { "custom": { "lineWidth": 1, "fillOpacity": 10 } } }
+        }
+      ]
+    }

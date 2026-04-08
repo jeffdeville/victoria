@@ -57,6 +57,11 @@ grafana:
   enabled: true
   adminUser: admin
   adminPassword: admin
+  grafana.ini:
+    auth.basic:
+      enabled: true
+    auth:
+      disable_login_form: false
   ingress:
     enabled: true
     ingressClassName: traefik

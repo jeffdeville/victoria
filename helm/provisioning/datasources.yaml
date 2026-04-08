@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-extra-datasources
+  namespace: monitoring
+  labels:
+    grafana_datasource: "1"
+data:
+  extra-datasources.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: VictoriaLogs
+        type: loki
+        uid: victorialogs
+        url: http://logs-victoria-logs-single-server.monitoring.svc.cluster.local:9428
+        access: proxy
+        isDefault: false
+
+      - name: VictoriaTraces
+        type: tempo
+        uid: victoriatraces
+        url: http://traces-vt-single-server.monitoring.svc.cluster.local:10428
+        access: proxy
+        isDefault: false
+        jsonData:
+          tracesToLogsV2:
+            datasourceUid: victorialogs
+            filterByTraceID: true
+            filterBySpanID: false
+          tracesToMetrics:
+            datasourceUid: P4169E866C3094E38
+          serviceMap:
+            datasourceUid: P4169E866C3094E38
+          lokiSearch:
+            datasourceUid: victorialogs
