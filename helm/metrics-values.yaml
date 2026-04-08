@@ -62,6 +62,10 @@ grafana:
       enabled: true
     auth:
       disable_login_form: false
+    plugins:
+      allow_loading_unsigned_plugins: victoriametrics-logs-datasource
+  plugins:
+    - victoriametrics-logs-datasource
   ingress:
     enabled: true
     ingressClassName: traefik
@@ -71,7 +75,8 @@ grafana:
   # Additional datasources (VictoriaMetrics Prometheus source is auto-added by the chart)
   additionalDataSources:
     - name: VictoriaLogs
-      type: loki
+      type: victoriametrics-logs-datasource
+      uid: victorialogs
       url: http://logs-victoria-logs-single-server.monitoring.svc.cluster.local:9428
       access: proxy
       isDefault: false

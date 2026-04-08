@@ -10,7 +10,7 @@ data:
     apiVersion: 1
     datasources:
       - name: VictoriaLogs
-        type: loki
+        type: victoriametrics-logs-datasource
         uid: victorialogs
         url: http://logs-victoria-logs-single-server.monitoring.svc.cluster.local:9428
         access: proxy

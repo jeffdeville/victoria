@@ -23,9 +23,9 @@ data:
             "name": "project",
             "label": "Project",
             "type": "query",
-            "datasource": { "type": "prometheus", "uid": "P4169E866C3094E38" },
-            "definition": "label_values(project)",
-            "query": { "query": "label_values(project)", "refId": "A" },
+            "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
+            "definition": "{\"type\":\"fieldValue\",\"field\":\"project\",\"query\":\"*\",\"refId\":\"A\"}",
+            "query": { "type": "fieldValue", "field": "project", "query": "*", "refId": "A" },
             "refresh": 2,
             "multi": true,
             "includeAll": true,
@@ -50,23 +50,26 @@ data:
           "type": "timeseries",
           "title": "Log Volume by Level",
           "gridPos": { "h": 6, "w": 24, "x": 0, "y": 0 },
-          "datasource": { "type": "loki", "uid": "victorialogs" },
+          "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
           "targets": [
             {
-              "datasource": { "type": "loki", "uid": "victorialogs" },
-              "expr": "sum(count_over_time({project=~\"$project\", level=\"error\"} [$__interval]))",
+              "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
+              "expr": "{project=~\"$project\", level=\"error\"} | stats count(*)",
+              "queryType": "statsRange",
               "legendFormat": "error",
               "refId": "A"
             },
             {
-              "datasource": { "type": "loki", "uid": "victorialogs" },
-              "expr": "sum(count_over_time({project=~\"$project\", level=\"warning\"} [$__interval]))",
+              "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
+              "expr": "{project=~\"$project\", level=\"warning\"} | stats count(*)",
+              "queryType": "statsRange",
               "legendFormat": "warning",
               "refId": "B"
             },
             {
-              "datasource": { "type": "loki", "uid": "victorialogs" },
-              "expr": "sum(count_over_time({project=~\"$project\", level=\"info\"} [$__interval]))",
+              "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
+              "expr": "{project=~\"$project\", level=\"info\"} | stats count(*)",
+              "queryType": "statsRange",
               "legendFormat": "info",
               "refId": "C"
             }
@@ -90,10 +93,11 @@ data:
           "type": "logs",
           "title": "Log Stream",
           "gridPos": { "h": 20, "w": 24, "x": 0, "y": 6 },
-          "datasource": { "type": "loki", "uid": "victorialogs" },
+          "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
           "targets": [{
-            "datasource": { "type": "loki", "uid": "victorialogs" },
+            "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
             "expr": "{project=~\"$project\", level=~\"$level\"}",
+            "queryType": "range",
             "refId": "A"
           }],
           "options": {
@@ -111,12 +115,12 @@ data:
           "type": "table",
           "title": "Error Summary — Top Modules",
           "gridPos": { "h": 8, "w": 24, "x": 0, "y": 26 },
-          "datasource": { "type": "loki", "uid": "victorialogs" },
+          "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
           "targets": [{
-            "datasource": { "type": "loki", "uid": "victorialogs" },
-            "expr": "sum by (module, project) (count_over_time({project=~\"$project\", level=\"error\"} [$__range]))",
-            "refId": "A",
-            "instant": true
+            "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
+            "expr": "{project=~\"$project\", level=\"error\"} | stats by (module, project) count(*)",
+            "queryType": "stats",
+            "refId": "A"
           }],
           "options": { "sortBy": [{ "displayName": "Value", "desc": true }] },
           "fieldConfig": {
