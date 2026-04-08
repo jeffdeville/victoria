@@ -54,6 +54,15 @@ config:
         - key: project
           from_attribute: k8s.namespace.name
           action: insert
+    # VictoriaLogs maps the OTLP log body → _msg. Elixir's OTEL logger emits the
+    # message as a "msg" attribute with an empty body, so _msg arrives as a
+    # placeholder warning. This moves the msg attribute into the body before export.
+    transform/logs:
+      log_statements:
+        - context: log
+          statements:
+            - set(body, attributes["msg"]) where attributes["msg"] != nil
+            - delete_key(attributes, "msg")
 
   exporters:
     otlp_http/metrics:
@@ -77,7 +86,7 @@ config:
         exporters: [otlp_http/metrics]
       logs:
         receivers: [otlp]
-        processors: [memory_limiter, k8sattributes, resource, batch]
+        processors: [memory_limiter, k8sattributes, resource, transform/logs, batch]
         exporters: [otlp_http/logs]
       traces:
         receivers: [otlp]
