@@ -2,7 +2,14 @@
   "mcpServers": {
     "grafana": {
       "type": "stdio",
-      "command": "/Users/jeff/go/bin/mcp-grafana"
+      "command": "/Users/jeff/go/bin/mcp-grafana",
+      "args": [
+        "--enabled-tools",
+        "search,datasource,prometheus,loki,alerting,dashboard,folder,annotations,rendering,runpanelquery,searchlogs,examples,sift,navigation"
+      ],
+      "env": {
+        "GRAFANA_URL": "http://localhost:3000"
+      }
     }
   }
 }
