@@ -40,6 +40,16 @@ config:
         http:
           endpoint: 0.0.0.0:4318
 
+  connectors:
+    spanmetrics:
+      namespace: traces_spanmetrics
+      metrics_flush_interval: 15s
+      histogram:
+        explicit:
+          buckets: [1ms, 5ms, 10ms, 25ms, 50ms, 100ms, 250ms, 500ms, 1s, 5s, 10s, 30s, 60s]
+      dimensions:
+        - name: project
+
   processors:
     memory_limiter:
       check_interval: 1s
@@ -81,7 +91,7 @@ config:
   service:
     pipelines:
       metrics:
-        receivers: [otlp]
+        receivers: [otlp, spanmetrics]
         processors: [memory_limiter, k8sattributes, resource, batch]
         exporters: [otlp_http/metrics]
       logs:
@@ -91,7 +101,7 @@ config:
       traces:
         receivers: [otlp]
         processors: [memory_limiter, k8sattributes, resource, batch]
-        exporters: [otlp_http/traces]
+        exporters: [otlp_http/traces, spanmetrics]
 
 # OTLP ports (4317 gRPC, 4318 HTTP) are exposed automatically by the chart
 # when the otlp receiver is configured. No additional service config needed.
