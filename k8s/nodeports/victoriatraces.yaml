@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: traces-nodeport
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/part-of: observability-stable-ingress
+spec:
+  type: NodePort
+  ports:
+    - name: http
+      port: 10428
+      targetPort: 10428
+      nodePort: 30430
+      protocol: TCP
+  selector:
+    app: server
+    app.kubernetes.io/instance: traces
+    app.kubernetes.io/name: vt-single
