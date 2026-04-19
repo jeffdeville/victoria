@@ -5,8 +5,31 @@ metadata:
 servers: 1
 agents: 1
 ports:
-  # Traefik ingress — access UIs via http://localhost:8088
+  # Traefik ingress — access UIs via http://localhost:8088 with Host headers
   - port: 8088:80
+    nodeFilters:
+      - loadbalancer
+  # Stable-ingress NodePorts — see k8s/nodeports/README.md for the port map.
+  # These mean MCP servers / dev tools never need `kubectl port-forward`.
+  - port: 8428:30428   # VictoriaMetrics  → vmsingle-nodeport
+    nodeFilters:
+      - loadbalancer
+  - port: 9428:30429   # VictoriaLogs     → logs-nodeport
+    nodeFilters:
+      - loadbalancer
+  - port: 10428:30430  # VictoriaTraces   → traces-nodeport
+    nodeFilters:
+      - loadbalancer
+  - port: 3000:30431   # Grafana          → grafana-nodeport
+    nodeFilters:
+      - loadbalancer
+  - port: 4317:30432   # OTLP gRPC        → otel-collector-nodeport
+    nodeFilters:
+      - loadbalancer
+  - port: 4318:30433   # OTLP HTTP        → otel-collector-nodeport
+    nodeFilters:
+      - loadbalancer
+  - port: 8880:30434   # vmalert          → vmalert-nodeport
     nodeFilters:
       - loadbalancer
 volumes:

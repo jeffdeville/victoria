@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: vmalert-nodeport
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/part-of: observability-stable-ingress
+spec:
+  type: NodePort
+  ports:
+    - name: http
+      port: 8880
+      targetPort: 8080
+      nodePort: 30434
+      protocol: TCP
+  selector:
+    app.kubernetes.io/component: monitoring
+    app.kubernetes.io/instance: vm-victoria-metrics-k8s-stack
+    app.kubernetes.io/name: vmalert
+    managed-by: vm-operator
